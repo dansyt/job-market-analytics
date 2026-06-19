@@ -1,48 +1,85 @@
 name: Kalibrr Scraper
 
+# --------------------------------------------------------------
+# 1️⃣ Permissions – allow the default GITHUB_TOKEN to push
+# --------------------------------------------------------------
+permissions:
+  contents: write   # required for git push
+  actions: read
+
 on:
   push:
     branches: [main]
   schedule:
-    - cron: "0 0 * * *"  # daily at 00:00 UTC
+    - cron: "0 0 * * *"      # daily at 00:00 UTC
   workflow_dispatch:
+
 jobs:
   scrape:
     runs-on: ubuntu-latest
+
     steps:
+      # --------------------------------------------------------
+      # 2️⃣ Checkout the repo – full history so we can push
+      # --------------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # needed for a push from a branch
 
+      # --------------------------------------------------------
+      # 3️⃣ Set up Python
+      # --------------------------------------------------------
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
+      # --------------------------------------------------------
+      # 4️⃣ Install dependencies
+      # --------------------------------------------------------
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install requests beautifulsoup4
 
+      # --------------------------------------------------------
+      # 5️⃣ Run the scraper (creates a timestamped CSV)
+      # --------------------------------------------------------
       - name: Run scraper
+        id: scrape
         run: |
           python scraper.py --output kalibrr_jobs.csv
+          # Capture the exact filename that was produced (timestamped)
+          CSV_FILE=$(ls kalibrr_jobs_*.csv 2>/dev/null || echo kalibrr_jobs.csv)
+          echo "csv_file=$CSV_FILE" >> $GITHUB_OUTPUT
 
-      - name: Set up Git
-        run: |
-          git config --global user.email "actions@github.com"
-          git config --global user.name "GitHub Action"
-
-      - name: Commit CSV to repository
-        if: success()
-        run: |
-          git add kalibrr_jobs.csv
-          git commit -m "Update scraped jobs data [skip ci]"
-          git push
-
-
+      # --------------------------------------------------------
+      # 6️⃣ Upload CSV as an artifact (still handy)
+      # --------------------------------------------------------
       - name: Upload CSV artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: kalibrr_jobs
-          path: kalibrr_jobs.csv
+          path: ${{ steps.scrape.outputs.csv_file }}
+
+      # --------------------------------------------------------
+      # 7️⃣ Configure Git (required for commit)
+      # --------------------------------------------------------
+      - name: Set up Git
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Action"
+
+      # --------------------------------------------------------
+      # 8️⃣ Commit the *timestamped* CSV back to the repo
+      # --------------------------------------------------------
+      - name: Commit CSV to repository
+        if: success()
+        run: |
+          CSV="${{ steps.scrape.outputs.csv_file }}"
+          git add "$CSV"
+          # The [skip ci] flag prevents this commit from triggering the workflow again
+          git commit -m "Update scraped jobs data [skip ci]" || echo "No changes to commit"
+          git push origin main
