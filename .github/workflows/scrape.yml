@@ -64,25 +64,4 @@ jobs:
 
       # --------------------------------------------------------
       # 7️⃣ Configure Git (required for commit)
-      # --------------------------------------------------------
-      - name: Set up Git
-        run: |
-          git config --global user.email "actions@github.com"
-          git config --global user.name "GitHub Action"
-
-      # --------------------------------------------------------
-      # 8️⃣ Commit the *timestamped* CSV back to the repo
-      # --------------------------------------------------------
-      - name: Commit CSV to repository
-        if: success()
-        run: |
-          CSV="${{ steps.scrape.outputs.csv_file }}"
-          if [ -n "$CSV" ]; then
-            git add "$CSV"
-            # The [skip ci] flag prevents this commit from triggering the workflow again
-            git commit -m "Update scraped jobs data [skip ci]" || echo "No changes to commit"
-            # Push to the **current** branch (master, main, or any other)
-            git push origin ${{ github.ref_name }}
-          else
-            echo "No CSV file detected, skipping commit"
-          fi
+          path: ${{ steps.scrape.outputs.csv_file }}
