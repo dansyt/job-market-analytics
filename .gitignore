@@ -1,0 +1,3 @@
+# .gitignore
+# Ignore the default CSV name – timestamped files are committed
+kalibrr_jobs.csv
