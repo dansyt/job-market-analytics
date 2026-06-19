@@ -4,7 +4,10 @@ import pandas as pd
 from supabase import create_client, Client
 
 def get_supabase_client() -> Client:
+    # Supabase URL should be the base URL (without /rest/v1/)
     url = os.getenv('SUPABASE_URL')
+    if url and url.endswith('/rest/v1/'):
+        url = url.rstrip('/rest/v1/')
     key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
     if not url or not key:
         raise RuntimeError('Supabase credentials not set in environment variables')
