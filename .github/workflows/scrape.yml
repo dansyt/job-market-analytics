@@ -4,14 +4,14 @@ name: Kalibrr Scraper
 # 1️⃣ Permissions – allow the default GITHUB_TOKEN to push
 # --------------------------------------------------------------
 permissions:
-  contents: write   # required for git push
+  contents: write   # needed for git push
   actions: read
 
 on:
   push:
-    branches: [main]
+    branches: [master]          # <-- adapt to your default branch
   schedule:
-    - cron: "0 0 * * *"      # daily at 00:00 UTC
+    - cron: "0 0 * * *"          # daily at 00:00 UTC
   workflow_dispatch:
 
 jobs:
@@ -82,4 +82,5 @@ jobs:
           git add "$CSV"
           # The [skip ci] flag prevents this commit from triggering the workflow again
           git commit -m "Update scraped jobs data [skip ci]" || echo "No changes to commit"
-          git push origin main
+          # Push to the **current** branch (master, main, or any other)
+          git push origin ${{ github.ref_name }}
