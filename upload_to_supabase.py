@@ -30,6 +30,8 @@ def main():
     if not os.path.isfile(csv_path):
         raise FileNotFoundError(f"CSV file not found: {csv_path}")
     df = pd.read_csv(csv_path)
+    # Replace NaN/inf with None for JSON compatibility
+    df = df.replace({np.nan: None, np.inf: None, -np.inf: None})
     client = get_supabase_client()
     upsert_jobs(df, client)
 
