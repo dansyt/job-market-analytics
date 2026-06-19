@@ -33,6 +33,8 @@ def main():
     df = pd.read_csv(csv_path)
     # Replace NaN/inf with None for JSON compatibility
     df = df.replace({np.nan: None, np.inf: None, -np.inf: None})
+    # Convert column names to lowercase snake_case to match Supabase schema
+    df = df.rename(columns=lambda col: col.strip().lower().replace(' ', '_'))
     client = get_supabase_client()
     upsert_jobs(df, client)
 
