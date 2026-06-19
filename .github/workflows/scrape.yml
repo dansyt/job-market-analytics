@@ -62,3 +62,13 @@ jobs:
           name: kalibrr_jobs
           path: ${{ steps.scrape.outputs.csv_file }}
 
+      # --------------------------------------------------------
+      # 7️⃣ Upload CSV to Supabase
+      # --------------------------------------------------------
+      - name: Upload CSV to Supabase
+        if: success()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python upload_to_supabase.py --file ${{ steps.scrape.outputs.csv_file }}
