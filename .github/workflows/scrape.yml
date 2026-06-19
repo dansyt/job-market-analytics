@@ -48,8 +48,8 @@ jobs:
         id: scrape
         run: |
           python scraper.py --output kalibrr_jobs.csv
-          # Capture the exact filename that was produced (timestamped)
-          CSV_FILE=$(ls kalibrr_jobs_*.csv 2>/dev/null || echo kalibrr_jobs.csv)
+          # Capture the most recent timestamped CSV (handles multiple matches)
+          CSV_FILE=$(ls -t kalibrr_jobs_*.csv 2>/dev/null | head -n1 || echo kalibrr_jobs.csv)
           echo "csv_file=$CSV_FILE" >> $GITHUB_OUTPUT
 
       # --------------------------------------------------------
@@ -77,8 +77,12 @@ jobs:
         if: success()
         run: |
           CSV="${{ steps.scrape.outputs.csv_file }}"
-          git add "$CSV"
-          # The [skip ci] flag prevents this commit from triggering the workflow again
-          git commit -m "Update scraped jobs data [skip ci]" || echo "No changes to commit"
-          # Push to the **current** branch (master, main, or any other)
-          git push origin ${{ github.ref_name }}
+          if [ -n "$CSV" ]; then
+            git add "$CSV"
+            # The [skip ci] flag prevents this commit from triggering the workflow again
+            git commit -m "Update scraped jobs data [skip ci]" || echo "No changes to commit"
+            # Push to the **current** branch (master, main, or any other)
+            git push origin ${{ github.ref_name }}
+          else
+            echo "No CSV file detected, skipping commit"
+          fi
