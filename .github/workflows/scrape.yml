@@ -8,10 +8,8 @@ permissions:
   actions: read
 
 on:
-  push:
-    branches: [master]          # <-- adapt to your default branch
   schedule:
-    - cron: "0 0 * * *"          # daily at 00:00 UTC
+    - cron: "0 0 * * *"  # daily at 00:00 UTC
   workflow_dispatch:
 
 jobs:
