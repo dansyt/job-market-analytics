@@ -62,6 +62,3 @@ jobs:
           name: kalibrr_jobs
           path: ${{ steps.scrape.outputs.csv_file }}
 
-      # --------------------------------------------------------
-      # 7️⃣ Configure Git (required for commit)
-          path: ${{ steps.scrape.outputs.csv_file }}
