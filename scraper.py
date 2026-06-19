@@ -133,7 +133,7 @@ if __name__ == "__main__":
 
     # If user kept default output name, inject a timestamp to avoid overwriting previous runs
     if args.output == "kalibrr_jobs.csv":
-        ts = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        ts = (datetime.datetime.utcnow() + datetime.timedelta(hours=7)).strftime("%Y%m%d_%H%M%S")
         args.output = f"kalibrr_jobs_{ts}.csv"
 
     scrape_kalibrr(keyword=args.keyword, max_pages=args.pages, output_file=args.output)
