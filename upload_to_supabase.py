@@ -1,6 +1,7 @@
 import os
 import argparse
 import pandas as pd
+import numpy as np
 from supabase import create_client, Client
 
 def get_supabase_client() -> Client:
