@@ -16,5 +16,3 @@ The workflow defined in `.github/workflows/scrape.yml` runs on every push to `ma
 - `requirements.txt` – Python dependencies.
 - `.gitignore` – excludes generated CSV files, caches, and OS‑specific artefacts.
 
-## License
-MIT License (feel free to adjust).
