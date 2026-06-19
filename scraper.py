@@ -1,5 +1,6 @@
 import csv
 import time
+import datetime
 import argparse
 import requests
 from bs4 import BeautifulSoup
@@ -129,5 +130,10 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=str, default="kalibrr_jobs.csv", help="Nama file output CSV (default: 'kalibrr_jobs.csv')")
     
     args = parser.parse_args()
-    
+
+    # If user kept default output name, inject a timestamp to avoid overwriting previous runs
+    if args.output == "kalibrr_jobs.csv":
+        ts = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        args.output = f"kalibrr_jobs_{ts}.csv"
+
     scrape_kalibrr(keyword=args.keyword, max_pages=args.pages, output_file=args.output)
