@@ -19,8 +19,10 @@ def upsert_jobs(df: pd.DataFrame, client: Client):
     records = df.to_dict(orient='records')
     # Assuming table name is "jobs"
     response = client.table('jobs').upsert(records).execute()
-    if response.error:
-        raise RuntimeError(f"Supabase upsert error: {response.error.message}")
+    if getattr(response, 'status_code', 200) >= 400:
+        # Try to extract error details
+        error_msg = getattr(response, 'content', None) or getattr(response, 'json', lambda: {})()
+        raise RuntimeError(f"Supabase upsert failed with status {response.status_code}: {error_msg}")
     print(f"Upserted {len(records)} rows into Supabase 'jobs' table.")
 
 def main():
