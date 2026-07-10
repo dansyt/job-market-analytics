@@ -81,16 +81,38 @@ def scrape_kalibrr(keyword=None, max_pages=3, output_file="kalibrr_jobs.csv"):
                     location = lines[2]
 
                 # Parsing dinamis untuk detail baris lainnya
-                for line in lines[3:]:
-                    if "gaji" in line.lower() or "idr" in line.lower() or "rp" in line.lower() or "tidak diumumkan" in line.lower():
-                        salary = line
-                    elif "penuh waktu" in line.lower() or "paruh waktu" in line.lower() or "magang" in line.lower() or "kontrak" in line.lower() or "full-time" in line.lower() or "internship" in line.lower():
+                for i, line in enumerate(lines[3:]):
+                    lower_line = line.lower()
+                    if "gaji" in lower_line or "idr" in lower_line or "rp" in lower_line or "tidak diumumkan" in lower_line:
+                        if line.strip() in ["IDR", "Rp", "IDR.", "Rp."]:
+                            parts = [line.strip()]
+                            idx_ahead = 3 + i + 1
+                            while idx_ahead < len(lines):
+                                next_line = lines[idx_ahead].strip()
+                                # Berhenti memindai ke bawah jika ketemu pemisah rentang
+                                if next_line in ["-", "to", "ke", "~", "—"]:
+                                    break
+                                if any(char.isdigit() for char in next_line):
+                                    parts.append(next_line)
+                                    idx_ahead += 1
+                                else:
+                                    break
+                            salary = " ".join(parts)
+                        else:
+                            salary = line
+                            
+                        # Pastikan kita hanya mengambil batas bawah gaji (angka pertama)
+                        for separator in ["-", "—", " to ", " ke ", "~"]:
+                            if separator in salary:
+                                salary = salary.split(separator)[0].strip()
+                                break
+                    elif "penuh waktu" in lower_line or "paruh waktu" in lower_line or "magang" in lower_line or "kontrak" in lower_line or "full-time" in lower_line or "internship" in lower_line:
                         job_type = line
-                    elif "rekruter terakhir aktif" in line.lower() or "aktif" in line.lower():
+                    elif "rekruter terakhir aktif" in lower_line or "aktif" in lower_line:
                         recruiter_status = line
-                    elif "lulusan baru" in line.lower() or "junior" in line.lower() or "senior" in line.lower() or "tahun" in line.lower() or "pengalaman" in line.lower():
+                    elif "lulusan baru" in lower_line or "junior" in lower_line or "senior" in lower_line or "tahun" in lower_line or "pengalaman" in lower_line:
                         experience_level = line
-                    elif "apply before" in line.lower() or "lamar sebelum" in line.lower():
+                    elif "apply before" in lower_line or "lamar sebelum" in lower_line:
                         deadline = line
 
                 jobs_data.append({
