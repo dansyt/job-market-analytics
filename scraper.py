@@ -87,16 +87,15 @@ def scrape_kalibrr(keyword=None, max_pages=3, output_file="kalibrr_jobs.csv"):
                         if line.strip() in ["IDR", "Rp", "IDR.", "Rp."]:
                             parts = [line.strip()]
                             idx_ahead = 3 + i + 1
-                            while idx_ahead < len(lines):
+                            limit = min(idx_ahead + 5, len(lines))
+                            while idx_ahead < limit:
                                 next_line = lines[idx_ahead].strip()
-                                # Berhenti memindai ke bawah jika ketemu pemisah rentang
-                                if next_line in ["-", "to", "ke", "~", "—"]:
-                                    break
+                                # Jika baris ini mengandung angka (nominal gaji), gabungkan lalu stop pencarian
                                 if any(char.isdigit() for char in next_line):
                                     parts.append(next_line)
-                                    idx_ahead += 1
-                                else:
                                     break
+                                # Jika ketemu pemisah rentang, mungkin nominalnya ada di baris berikutnya, kita abaikan saja pemisahnya
+                                idx_ahead += 1
                             salary = " ".join(parts)
                         else:
                             salary = line
