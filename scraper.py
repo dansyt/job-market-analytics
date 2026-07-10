@@ -1,38 +1,89 @@
 import csv
 import time
+import json
+import re
 import datetime
 import argparse
 import requests
 from bs4 import BeautifulSoup
 
+def format_salary(job):
+    """
+    Mengambil data salary dari JSON terstruktur (Next.js data).
+    Lebih andal dibanding parsing teks HTML karena datanya bersumber dari API.
+    """
+    salary_shown = job.get("salaryShown", False)
+    base_salary = job.get("baseSalary")
+    max_salary = job.get("maximumSalary")
+    currency = job.get("salaryCurrency", "IDR")
+    interval = job.get("salaryInterval", "month")
+
+    if not salary_shown or not base_salary:
+        return "Gaji Tidak Diumumkan"
+
+    # Format angka menjadi gaya Indonesia (misal: 5.000.000)
+    def fmt(n):
+        return f"{int(n):,}".replace(",", ".")
+
+    if max_salary and max_salary != base_salary:
+        return f"{currency} {fmt(base_salary)} - {fmt(max_salary)} / {interval}"
+    else:
+        return f"{currency} {fmt(base_salary)} / {interval}"
+
+
+def extract_jobs_from_page(html):
+    """
+    Mengekstrak data jobs langsung dari JSON terstruktur Next.js
+    yang disematkan di dalam tag <script> pada halaman.
+    Cara ini tidak terpengaruh oleh lokasi server (Indonesia vs Amerika).
+    """
+    script_tags = re.findall(r'<script[^>]*>(.*?)</script>', html, re.DOTALL)
+    next_data_script = None
+    for tag in script_tags:
+        if '"baseSalary"' in tag or '"salaryShown"' in tag:
+            next_data_script = tag
+            break
+
+    if not next_data_script:
+        return []
+
+    try:
+        data = json.loads(next_data_script)
+        jobs = data.get("props", {}).get("pageProps", {}).get("jobs", [])
+        return jobs
+    except (json.JSONDecodeError, KeyError):
+        return []
+
+
 def scrape_kalibrr(keyword=None, max_pages=3, output_file="kalibrr_jobs.csv"):
     """
-    Scraper untuk mengambil data lowongan pekerjaan dari Kalibrr secara umum atau berdasarkan keyword
-    menggunakan requests dan BeautifulSoup (tanpa Playwright, ramah untuk GitHub Actions).
+    Scraper untuk mengambil data lowongan pekerjaan dari Kalibrr.
+    Menggunakan data JSON terstruktur (Next.js) untuk ekstraksi salary yang akurat,
+    tidak bergantung pada lokasi server (Indonesia/Amerika/dll).
     """
     if keyword:
         formatted_keyword = keyword.strip().replace(" ", "-")
         base_url = f"https://www.kalibrr.com/id-ID/home/te/{formatted_keyword}"
     else:
         base_url = "https://www.kalibrr.com/id-ID/home/co/Indonesia"
-        #base_url = "https://www.kalibrr.com/id-ID/job-board"
 
     jobs_data = []
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     }
 
-    print(f"=== Memulai Scraping Kalibrr (Menggunakan Requests + BS4) ===")
+    print(f"=== Memulai Scraping Kalibrr (Mode JSON Terstruktur) ===")
     print(f"Target: {'Umum (Semua Bidang)' if not keyword else f'Keyword: {keyword}'}")
     print(f"Jumlah Halaman Maksimal: {max_pages}")
     print(f"File Output: {output_file}\n")
 
     session = requests.Session()
+    scraped_at = (datetime.datetime.utcnow() + datetime.timedelta(hours=7)).strftime("%Y-%m-%d %H:%M:%S")
 
     for current_page in range(1, max_pages + 1):
         url = f"{base_url}?page={current_page}"
         print(f"-> Mengunduh halaman {current_page}: {url}")
-        
+
         try:
             response = session.get(url, headers=headers, timeout=15)
             if response.status_code != 200:
@@ -42,100 +93,112 @@ def scrape_kalibrr(keyword=None, max_pages=3, output_file="kalibrr_jobs.csv"):
             print(f"   [Gagal] Gagal menghubungi server: {e}")
             break
 
-        soup = BeautifulSoup(response.text, "html.parser")
-        
-        # Temukan semua link judul pekerjaan
-        job_links = soup.select('a.k-text-black[href*="/jobs/"]')
-        count = len(job_links)
-        print(f"   Ditemukan {count} kartu lowongan kerja di halaman ini.")
+        # Ekstrak jobs dari JSON terstruktur Next.js
+        jobs_json = extract_jobs_from_page(response.text)
 
-        if count == 0:
-            print("   Selesai (tidak ada lowongan baru atau halaman kosong).")
-            break
-
-        for idx, link in enumerate(job_links):
-            try:
+        if not jobs_json:
+            # Fallback ke BeautifulSoup jika JSON tidak ditemukan
+            print("   [Info] JSON tidak ditemukan, beralih ke mode HTML parsing...")
+            soup = BeautifulSoup(response.text, "html.parser")
+            job_links = soup.select('a.k-text-black[href*="/jobs/"]')
+            print(f"   Ditemukan {len(job_links)} kartu lowongan (mode HTML).")
+            if not job_links:
+                print("   Selesai (tidak ada lowongan baru atau halaman kosong).")
+                break
+            # Mode HTML fallback: ambil data dasar saja tanpa salary
+            for link in job_links:
                 title = link.get_text().strip()
-                href = link.get("href")
+                href = link.get("href", "")
                 full_url = f"https://www.kalibrr.com{href}" if href else ""
-
-                # Naik 4 tingkat untuk mencari kontainer kartu (Parent 4)
                 card = link.parent.parent.parent.parent
-                
-                # Mengambil baris teks di dalam kartu
-                card_text = card.get_text(separator="\n")
-                lines = [line.strip() for line in card_text.split("\n") if line.strip()]
-
-                # Inisialisasi field default
-                company = ""
-                location = ""
-                salary = "Gaji Tidak Diumumkan"
-                job_type = ""
-                recruiter_status = ""
-                experience_level = ""
-                deadline = ""
-
-                if len(lines) > 1:
-                    company = lines[1]
-                if len(lines) > 2:
-                    location = lines[2]
-
-                # Parsing dinamis untuk detail baris lainnya
-                for i, line in enumerate(lines[3:]):
-                    lower_line = line.lower()
-                    if "gaji" in lower_line or "idr" in lower_line or "rp" in lower_line or "tidak diumumkan" in lower_line:
-                        if line.strip() in ["IDR", "Rp", "IDR.", "Rp."]:
-                            parts = [line.strip()]
-                            idx_ahead = 3 + i + 1
-                            limit = min(idx_ahead + 5, len(lines))
-                            while idx_ahead < limit:
-                                next_line = lines[idx_ahead].strip()
-                                lower_next = next_line.lower()
-                                # Pastikan mengandung angka, DAN bukan kalimat keterangan lain (mengandung rekruter/lulusan/pengalaman/apply)
-                                forbidden_words = ["rekruter", "aktif", "lulusan", "pengalaman", "apply", "terima", "hours", "days", "ago"]
-                                if any(char.isdigit() for char in next_line) and not any(fw in lower_next for fw in forbidden_words):
-                                    parts.append(next_line)
-                                    break
-                                # Jika ketemu pemisah rentang, kita abaikan saja pemisahnya
-                                idx_ahead += 1
-                                
-                            if len(parts) > 1:
-                                salary = " ".join(parts)
-                            else:
-                                # Jika hanya berhasil menangkap 'IDR' dan gagal menemukan angkanya, anggap Gaji Tidak Diumumkan
-                                salary = "Gaji Tidak Diumumkan"
-                        else:
-                            salary = line
-                            
-                        # Pastikan kita hanya mengambil batas bawah gaji (angka pertama)
-                        for separator in ["-", "—", " to ", " ke ", "~"]:
-                            if separator in salary:
-                                salary = salary.split(separator)[0].strip()
-                                break
-                    elif "penuh waktu" in lower_line or "paruh waktu" in lower_line or "magang" in lower_line or "kontrak" in lower_line or "full-time" in lower_line or "internship" in lower_line:
-                        job_type = line
-                    elif "rekruter terakhir aktif" in lower_line or "aktif" in lower_line:
-                        recruiter_status = line
-                    elif "lulusan baru" in lower_line or "junior" in lower_line or "senior" in lower_line or "tahun" in lower_line or "pengalaman" in lower_line:
-                        experience_level = line
-                    elif "apply before" in lower_line or "lamar sebelum" in lower_line:
-                        deadline = line
-
+                lines = [l.strip() for l in card.get_text(separator="\n").split("\n") if l.strip()]
+                company = lines[1] if len(lines) > 1 else ""
+                location = lines[2] if len(lines) > 2 else ""
                 jobs_data.append({
-                    "Title": title,
-                    "Company": company,
-                    "Location": location,
-                    "Salary": salary,
-                    "Job Type": job_type,
-                    "Experience Level": experience_level,
-                    "Recruiter Status": recruiter_status,
-                    "Deadline": deadline,
-                    "URL": full_url,
-                    "Scraped At": (datetime.datetime.utcnow() + datetime.timedelta(hours=7)).strftime("%Y-%m-%d %H:%M:%S")
+                    "Title": title, "Company": company, "Location": location,
+                    "Salary": "Gaji Tidak Diumumkan", "Job Type": "", "Experience Level": "",
+                    "Recruiter Status": "", "Deadline": "", "URL": full_url,
+                    "Scraped At": scraped_at
                 })
+        else:
+            print(f"   Ditemukan {len(jobs_json)} lowongan kerja di halaman ini.")
+            if not jobs_json:
+                print("   Selesai (tidak ada lowongan baru atau halaman kosong).")
+                break
 
-            except Exception as card_err:
-                print(f"   [Peringatan] Gagal memproses kartu ke-{idx+1}: {card_err}")
+            for job in jobs_json:
+                try:
+                    # Ambil nama pekerjaan: bisa di field 'name' atau 'position'
+                    title = job.get("name") or job.get("position", "")
+
+                    # Data perusahaan
+                    company_obj = job.get("company", {})
+                    if isinstance(company_obj, dict):
+                        company = company_obj.get("name", job.get("companyName", ""))
+                    else:
+                        company = job.get("companyName", "")
+
+                    # Lokasi
+                    location_obj = job.get("googleLocation", {})
+                    if isinstance(location_obj, dict):
+                        location = location_obj.get("address", "")
+                    else:
+                        location = ""
+
+                    # Salary - dari data terstruktur, akurat di mana pun servernya
+                    salary = format_salary(job)
+
+                    # Tipe pekerjaan
+                    tenure_map = {
+                        "Full time": "Penuh waktu", "Part time": "Paruh waktu",
+                        "Internship": "Magang", "Contract": "Kontrak"
+                    }
+                    job_type = tenure_map.get(job.get("tenure", ""), job.get("tenure", ""))
+
+                    # Level pengalaman
+                    work_exp = job.get("workExperience")
+                    if job.get("isOpenToFreshGrads"):
+                        experience_level = "Lulusan Baru / Junior"
+                    elif work_exp:
+                        experience_level = f"Min. {work_exp} bulan pengalaman"
+                    else:
+                        experience_level = ""
+
+                    # Deadline
+                    app_end = job.get("applicationEndDate", "")
+                    if app_end:
+                        try:
+                            deadline_dt = datetime.datetime.fromisoformat(app_end.replace("Z", "+00:00"))
+                            deadline = f"Apply before {deadline_dt.strftime('%-d %b')}"
+                        except Exception:
+                            deadline = app_end[:10]
+                    else:
+                        deadline = ""
+
+                    # Status rekruter
+                    recruiter_seen = job.get("esRecruiterLastSeen", "")
+                    recruiter_status = f"Rekruter terakhir aktif {recruiter_seen}" if recruiter_seen else ""
+
+                    # URL
+                    slug = job.get("slug", "")
+                    company_code = company_obj.get("code", "") if isinstance(company_obj, dict) else ""
+                    full_url = f"https://www.kalibrr.com/id-ID/c/{company_code}/jobs/{job.get('id', '')}/{slug}" if slug else ""
+
+                    jobs_data.append({
+                        "Title": title,
+                        "Company": company,
+                        "Location": location,
+                        "Salary": salary,
+                        "Job Type": job_type,
+                        "Experience Level": experience_level,
+                        "Recruiter Status": recruiter_status,
+                        "Deadline": deadline,
+                        "URL": full_url,
+                        "Scraped At": scraped_at
+                    })
+
+                except Exception as job_err:
+                    print(f"   [Peringatan] Gagal memproses lowongan: {job_err}")
 
         # Jeda sopan
         time.sleep(1.5)
@@ -153,12 +216,13 @@ def scrape_kalibrr(keyword=None, max_pages=3, output_file="kalibrr_jobs.csv"):
     else:
         print("\n[Selesai] Tidak ada data lowongan yang berhasil dikumpulkan.")
 
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Kalibrr Job Board Scraper menggunakan Requests + BeautifulSoup")
+    parser = argparse.ArgumentParser(description="Kalibrr Job Board Scraper - Mode JSON Terstruktur")
     parser.add_argument("--keyword", type=str, default=None, help="Kata kunci pencarian (misal: 'Data Analyst'). Kosongkan untuk pencarian umum.")
     parser.add_argument("--pages", type=int, default=1, help="Jumlah halaman yang ingin di-scrape (default: 1)")
     parser.add_argument("--output", type=str, default="kalibrr_jobs.csv", help="Nama file output CSV (default: 'kalibrr_jobs.csv')")
-    
+
     args = parser.parse_args()
 
     # If user kept default output name, inject a timestamp to avoid overwriting previous runs
