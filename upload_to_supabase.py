@@ -32,7 +32,9 @@ def main():
     csv_path = args.file
     if not os.path.isfile(csv_path):
         raise FileNotFoundError(f"CSV file not found: {csv_path}")
-    df = pd.read_csv(csv_path)
+    df = pd.read_csv(csv_path, encoding='utf-8')
+    # Ganti karakter spasi kosong yang tidak biasa (non-breaking space) dengan spasi biasa
+    df = df.replace({'\xa0': ' '}, regex=True)
     # Replace NaN/inf with None for JSON compatibility
     df = df.replace({np.nan: None, np.inf: None, -np.inf: None})
     # Convert column names to lowercase snake_case to match Supabase schema
