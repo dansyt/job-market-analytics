@@ -90,13 +90,20 @@ def scrape_kalibrr(keyword=None, max_pages=3, output_file="kalibrr_jobs.csv"):
                             limit = min(idx_ahead + 5, len(lines))
                             while idx_ahead < limit:
                                 next_line = lines[idx_ahead].strip()
-                                # Jika baris ini mengandung angka (nominal gaji), gabungkan lalu stop pencarian
-                                if any(char.isdigit() for char in next_line):
+                                lower_next = next_line.lower()
+                                # Pastikan mengandung angka, DAN bukan kalimat keterangan lain (mengandung rekruter/lulusan/pengalaman/apply)
+                                forbidden_words = ["rekruter", "aktif", "lulusan", "pengalaman", "apply", "terima", "hours", "days", "ago"]
+                                if any(char.isdigit() for char in next_line) and not any(fw in lower_next for fw in forbidden_words):
                                     parts.append(next_line)
                                     break
-                                # Jika ketemu pemisah rentang, mungkin nominalnya ada di baris berikutnya, kita abaikan saja pemisahnya
+                                # Jika ketemu pemisah rentang, kita abaikan saja pemisahnya
                                 idx_ahead += 1
-                            salary = " ".join(parts)
+                                
+                            if len(parts) > 1:
+                                salary = " ".join(parts)
+                            else:
+                                # Jika hanya berhasil menangkap 'IDR' dan gagal menemukan angkanya, anggap Gaji Tidak Diumumkan
+                                salary = "Gaji Tidak Diumumkan"
                         else:
                             salary = line
                             
