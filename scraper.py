@@ -15,7 +15,8 @@ def format_salary(job):
     salary_shown = job.get("salaryShown", False)
     base_salary = job.get("baseSalary")
     max_salary = job.get("maximumSalary")
-    currency = job.get("salaryCurrency", "IDR")
+    # Selalu gunakan IDR untuk Indonesia, abaikan PHP atau currency lain
+    currency = "IDR"
     interval = job.get("salaryInterval", "month")
 
     if not salary_shown or not base_salary:
@@ -138,12 +139,18 @@ def scrape_kalibrr(keyword=None, max_pages=3, output_file="kalibrr_jobs.csv"):
                     else:
                         company = job.get("companyName", "")
 
-                    # Lokasi
+                    # Lokasi - ambil dari addressComponents
                     location_obj = job.get("googleLocation", {})
+                    location = ""
                     if isinstance(location_obj, dict):
-                        location = location_obj.get("address", "")
-                    else:
-                        location = ""
+                        addr = location_obj.get("addressComponents", {})
+                        if isinstance(addr, dict):
+                            city = addr.get("city", "")
+                            country = addr.get("country", "")
+                            if city and country:
+                                location = f"{city}, {country}"
+                            elif city:
+                                location = city
 
                     # Salary - dari data terstruktur, akurat di mana pun servernya
                     salary = format_salary(job)
