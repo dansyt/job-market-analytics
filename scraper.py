@@ -102,7 +102,8 @@ def scrape_kalibrr(keyword=None, max_pages=3, output_file="kalibrr_jobs.csv"):
                     "Experience Level": experience_level,
                     "Recruiter Status": recruiter_status,
                     "Deadline": deadline,
-                    "URL": full_url
+                    "URL": full_url,
+                    "Scraped At": (datetime.datetime.utcnow() + datetime.timedelta(hours=7)).strftime("%Y-%m-%d %H:%M:%S")
                 })
 
             except Exception as card_err:
