@@ -127,7 +127,7 @@ def scrape_kalibrr(keyword=None, max_pages=3, output_file="kalibrr_jobs.csv"):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Kalibrr Job Board Scraper menggunakan Requests + BeautifulSoup")
     parser.add_argument("--keyword", type=str, default=None, help="Kata kunci pencarian (misal: 'Data Analyst'). Kosongkan untuk pencarian umum.")
-    parser.add_argument("--pages", type=int, default=1, help="Jumlah halaman yang ingin di-scrape (default: 1)")
+    parser.add_argument("--pages", type=int, default=5, help="Jumlah halaman yang ingin di-scrape (default: 1)")
     parser.add_argument("--output", type=str, default="kalibrr_jobs.csv", help="Nama file output CSV (default: 'kalibrr_jobs.csv')")
     
     args = parser.parse_args()
