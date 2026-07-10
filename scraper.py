@@ -14,7 +14,8 @@ def scrape_kalibrr(keyword=None, max_pages=3, output_file="kalibrr_jobs.csv"):
         formatted_keyword = keyword.strip().replace(" ", "-")
         base_url = f"https://www.kalibrr.com/id-ID/home/te/{formatted_keyword}"
     else:
-        base_url = "https://www.kalibrr.com/id-ID/job-board"
+        base_url = "https://www.kalibrr.com/id-ID/home/co/Indonesia"
+        #base_url = "https://www.kalibrr.com/id-ID/job-board"
 
     jobs_data = []
     headers = {
