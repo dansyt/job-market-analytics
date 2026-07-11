@@ -81,6 +81,12 @@ def scrape_kalibrr(keyword=None, max_pages=3, output_file="kalibrr_jobs.csv"):
 
     session = requests.Session()
     scraped_at = (datetime.datetime.utcnow() + datetime.timedelta(hours=7)).strftime("%Y-%m-%d %H:%M:%S")
+    
+    proxies = {
+        "http": "socks4://103.101.218.113:8080",
+        "https": "socks4://103.101.218.113:8080"
+    }
+    session.proxies.update(proxies)
 
     for current_page in range(1, max_pages + 1):
         url = f"{base_url}?page={current_page}"
