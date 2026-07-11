@@ -1,3 +1,4 @@
+import os
 import csv
 import time
 import json
@@ -64,11 +65,11 @@ def map_education_level(job):
         return " "
 
     mapping = {
-        200: "Lulus SMA",
-        350: "Lulus program Vokasi (D3)",
-        450: "Lulus program Diploma (D3)",
-        550: "Lulus program Sarjana (S1)",
-        650: "Lulus program Magister (S2)"
+        200: "Graduated from high school",
+        350: "Complete vocational course",
+        450: "Completed associate's degree",
+        550: "Bachelor's degree graduate",
+        650: "Master's degree graduate"
     }
     
     return mapping.get(edu_code, " ")
@@ -89,11 +90,11 @@ def map_work_experience(job):
         return " "
 
     mapping = {
-        100: "Magang",
-        200: "Lulusan Baru",
+        100: "Internship",
+        200: "Entry Level",
         300: "Supervisor",
-        400: "Mid-Senior",
-        500: "Direktur"
+        400: "Mid-Senior Level",
+        500: "Director"
     }
     
     return mapping.get(exp_code, " ")
@@ -124,13 +125,13 @@ def extract_jobs_from_page(html):
 
 def scrape_kalibrr(keyword=None, max_pages=1, output_file="kalibrr_jobs.csv"):
     """
-    Scraper utama Kalibrr berdasarkan blueprint kolom final pilihan user.
+    Scraper utama Kalibrr yang menyimpan hasil ke folder result_csv.
     """
     if keyword:
         formatted_keyword = keyword.strip().replace(" ", "-")
-        base_url = f"https://www.kalibrr.com/id-ID/home/te/{formatted_keyword}"
+        base_url = f"https://www.kalibrr.com/home/te/{formatted_keyword}"
     else:
-        base_url = "https://www.kalibrr.com/id-ID/home/co/Indonesia"
+        base_url = "https://www.kalibrr.com/home/co/Indonesia"
 
     jobs_data = []
     headers = {
@@ -141,11 +142,18 @@ def scrape_kalibrr(keyword=None, max_pages=1, output_file="kalibrr_jobs.csv"):
     print(f"=== Memulai Scraping Kalibrr (Final Clean Edition) ===")
     print(f"Target: {'Umum' if not keyword else f'Keyword: {keyword}'}")
     print(f"Jumlah Halaman Maksimal: {max_pages}")
-    print(f"File Output: {output_file}\n")
+    
+    # 🛠️ 1. LOGIKA OTOMATIS MEMBUAT FOLDER result_csv
+    target_dir = "result_csv"
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir)
+        print(f"-> Folder '{target_dir}' belum ada. Berhasil dibuat otomatis.")
+    
+    # Gabungkan path folder dengan nama file
+    final_output_path = os.path.join(target_dir, output_file)
+    print(f"File Output: {final_output_path}\n")
 
     session = requests.Session()
-    
-    # Format timestamp untuk scraped_at (WIB / GMT+7)
     scraped_at = (datetime.datetime.utcnow() + datetime.timedelta(hours=7)).strftime("%Y-%m-%d %H:%M:%S")
 
     for current_page in range(1, max_pages + 1):
@@ -171,7 +179,6 @@ def scrape_kalibrr(keyword=None, max_pages=1, output_file="kalibrr_jobs.csv"):
 
         for job in jobs_json:
             try:
-                # 1. Validasi tipe data dictionary untuk properti bersarang
                 company_obj = job.get("company", {})
                 if not isinstance(company_obj, dict):
                     company_obj = {"name": str(company_obj), "industry": "", "code": ""}
@@ -184,13 +191,12 @@ def scrape_kalibrr(keyword=None, max_pages=1, output_file="kalibrr_jobs.csv"):
                 if not isinstance(addr_components, dict):
                     addr_components = {}
 
-                # 2. Pembuatan URL lengkap lowongan
                 slug = job.get("slug", "")
                 company_code = company_obj.get("code", "")
                 job_id = job.get("id", "")
-                full_url = f"https://www.kalibrr.com/id-ID/c/{company_code}/jobs/{job_id}/{slug}" if slug else ""
+                full_url = f"https://www.kalibrr.com/c/{company_code}/jobs/{job_id}/{slug}" if slug else ""
 
-                # 3. Susun objek data final sesuai instruksi
+                # Urutan append yang sudah kamu sesuaikan sebelumnya
                 jobs_data.append({
                     "id": job_id,
                     "scraped_at": scraped_at,
@@ -199,7 +205,7 @@ def scrape_kalibrr(keyword=None, max_pages=1, output_file="kalibrr_jobs.csv"):
                     "industry": company_obj.get("industry", ""),
                     "specialization": get_specialization(job),
                     "education_level": map_education_level(job),
-                    "work_experience": map_work_experience(job),
+                    "job_level": map_work_experience(job),
                     "city": addr_components.get("city", ""),
                     "salary": format_salary(job),
                     "salary_interval": job.get("salaryInterval", "month"),
@@ -215,14 +221,14 @@ def scrape_kalibrr(keyword=None, max_pages=1, output_file="kalibrr_jobs.csv"):
 
         time.sleep(1.5)
 
-    # Simpan ke file CSV
+    # Simpan ke file CSV di dalam folder target_dir
     if jobs_data:
         try:
-            with open(output_file, mode="w", newline="", encoding="utf-8") as f:
+            with open(final_output_path, mode="w", newline="", encoding="utf-8") as f:
                 writer = csv.DictWriter(f, fieldnames=jobs_data[0].keys())
                 writer.writeheader()
                 writer.writerows(jobs_data)
-            print(f"\n[Sukses] Berhasil mengekstrak {len(jobs_data)} data lowongan ke '{output_file}'!")
+            print(f"\n[Sukses] Berhasil mengekstrak {len(jobs_data)} data lowongan ke '{final_output_path}'!")
         except Exception as file_err:
             print(f"\n[Error] Gagal menulis data ke file CSV: {file_err}")
     else:
