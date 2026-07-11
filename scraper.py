@@ -83,8 +83,8 @@ def scrape_kalibrr(keyword=None, max_pages=3, output_file="kalibrr_jobs.csv"):
     scraped_at = (datetime.datetime.utcnow() + datetime.timedelta(hours=7)).strftime("%Y-%m-%d %H:%M:%S")
     
     proxies = {
-        "http": "http://103.183.8.183:8080",
-        "https": "http://103.183.8.183:8080"
+        "http": "http://8.215.25.3:2080",
+        "https": "https://8.215.25.3:2080"
     }
     session.proxies.update(proxies)
 
