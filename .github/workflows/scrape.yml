@@ -60,7 +60,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: kalibrr_jobs
-          path: ${{ steps.scrape.outputs.csv_file }}
+          path: result_csv/
 
       # --------------------------------------------------------
       # 7️⃣ Upload CSV to Supabase
