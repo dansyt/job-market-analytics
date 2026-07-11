@@ -2,3 +2,4 @@
 # Ignore the default CSV name – timestamped files are committed
 .csv
 .env
+catatan.txt
