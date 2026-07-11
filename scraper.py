@@ -84,7 +84,7 @@ def scrape_kalibrr(keyword=None, max_pages=3, output_file="kalibrr_jobs.csv"):
     
     proxies = {
         "http": "http://8.215.25.3:2080",
-        "https": "https://8.215.25.3:2080"
+        "https": "http://8.215.25.3:2080"
     }
     session.proxies.update(proxies)
 
