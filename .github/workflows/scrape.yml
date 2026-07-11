@@ -9,7 +9,7 @@ permissions:
 
 on:
   schedule:
-    - cron: "0 0 * * *"  # daily at 00:00 UTC
+    - cron: "0 0 * * *"  # daily at 00:00 UTC
   workflow_dispatch:
 
 jobs:
@@ -42,18 +42,14 @@ jobs:
           pip install requests beautifulsoup4 pandas supabase
 
       # --------------------------------------------------------
-      # 5️⃣ Run the scraper (creates a timestamped CSV)
+      # 5️⃣ Run the scraper (saves dynamic file inside result_csv/)
       # --------------------------------------------------------
       - name: Run scraper
-        id: scrape
         run: |
           python scraper.py --output kalibrr_jobs.csv
-          # Capture the most recent timestamped CSV (handles multiple matches)
-          CSV_FILE=$(ls -t kalibrr_jobs_*.csv 2>/dev/null | head -n1 || echo kalibrr_jobs.csv)
-          echo "csv_file=$CSV_FILE" >> $GITHUB_OUTPUT
 
       # --------------------------------------------------------
-      # 6️⃣ Upload CSV as an artifact (still handy)
+      # 6️⃣ Upload CSV folder as an artifact
       # --------------------------------------------------------
       - name: Upload CSV artifact
         if: always()
@@ -71,8 +67,14 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          python upload_to_supabase.py --file ${{ steps.scrape.outputs.csv_file }}
-      - name: Delete CSV file after upload
+          # Mengambil file CSV apa pun yang ada di dalam folder result_csv
+          python upload_to_supabase.py --file result_csv/*.csv
+
+      # --------------------------------------------------------
+      # 8️⃣ Clean up workspace environment
+      # --------------------------------------------------------
+      - name: Delete CSV folder after upload
         if: always()
         run: |
-          rm -f ${{ steps.scrape.outputs.csv_file }}
+          # Menghapus seluruh folder hasil beserta isinya di runner server
+          rm -rf result_csv/
