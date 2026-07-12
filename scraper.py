@@ -234,6 +234,31 @@ def scrape_kalibrr(keyword=None, max_pages=1, output_file="kalibrr_jobs.csv"):
     else:
         print("\n[Selesai] Tidak ada data lowongan yang berhasil dikumpulkan.")
 
+# ... (Kode penulisan CSV yang sudah ada sebelumnya) ...
+        try:
+            with open(final_output_path, mode="w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=jobs_data[0].keys())
+                writer.writeheader()
+                writer.writerows(jobs_data)
+            print(f"\n[Sukses] Berhasil mengekstrak {len(jobs_data)} data lowongan ke '{final_output_path}'!")
+            
+            # 🛠️ OTOMATISASI UPLOAD KE SUPABASE DARI DALAM KODE
+            print("\n[Info] Memulai otomatisasi upload ke Supabase...")
+            import subprocess
+            # Memanggil script upload_to_supabase.py secara programmatis
+            result = subprocess.run(
+                ["python", "upload_to_supabase.py", "--file", final_output_path],
+                capture_output=True, text=True
+            )
+            
+            if result.returncode == 0:
+                print("[Sukses] Data berhasil terunggah ke database Supabase!")
+            else:
+                print(f"[Gagal] Gagal mengunggah ke Supabase. Error:\n{result.stderr}")
+
+        except Exception as file_err:
+            print(f"\n[Error] Gagal menulis data ke file CSV: {file_err}")    
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Kalibrr Job Board Scraper - Final Structured Edition")
