@@ -1,18 +1,21 @@
-# Kalibrr Job Scraper
+# Job Market Analytics - Kalibrr Job Scraper
 
-A lightweight Python scraper that uses **requests** and **BeautifulSoup** to collect job listings from Kalibrr.
+A lightweight Python scraper that uses **requests** and **BeautifulSoup** to collect job listings from Kalibrr. The extracted data is organized into dynamic timestamped CSV files and automatically uploaded to a **Supabase** database for visualization using **Metabase** (Docker).
 
-## How to Run Locally
-```
-python scraper.py --pages 3 --output kalibrr_jobs.csv
-```
+---
 
-## GitHub Actions Workflow
-The workflow defined in `.github/workflows/scrape.yml` runs on every push to `main` **and** daily at 00:00 UTC, executing the scraper and uploading the generated `kalibrr_jobs.csv` as an artifact.
+## 📁 Project Structure
 
-## Project Structure
-- `scraper.py` – main scraping script.
-- `.github/workflows/scrape.yml` – CI workflow.
-- `requirements.txt` – Python dependencies.
-- `.gitignore` – excludes generated CSV files, caches, and OS‑specific artefacts.
-
+```text
+JOB-MARKET-ANALYTICS/
+│
+├── .github/workflows/
+│   └── scrape.yml             # GitHub Actions workflow (Manual execution only)
+├── result_csv/                # Folder for scraped outputs (Ignored by Git via .gitignore)
+│   └── kalibrr_jobs_*.csv     # Dynamic timestamped CSV files
+├── .env                       # Secret environment credentials (Supabase API & PostgreSQL)
+├── .gitignore                 # Excludes generated CSV files, caches, and the .env file
+├── README.md                  # Project documentation
+├── requirements.txt           # Python dependencies
+├── scraper.py                 # Main Kalibrr scraping script
+└── upload_to_supabase.py      # Script to clean and upload CSV data to Supabase
